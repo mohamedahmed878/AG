@@ -58,6 +58,7 @@ const Sale = mongoose.models.Sale || mongoose.model('Sale', new mongoose.Schema(
   customerName: String,         // اسم العميل
   receivedAt: Date,             // تاريخ استلام البضاعة (وقت البيع)
   supplierName: String,         // اسم المورد (وقت البيع)
+  payments: { type: [{ _id: false, n: Number, paidAt: Date }], default: [] }, // الأقساط المدفوعة
 }, { timestamps: true }));
 
 /* ---------- أدوات ---------- */
@@ -200,6 +201,22 @@ r.post('/sales', h(async (req, res) => {
     await Product.updateOne({ _id: prod._id }, { $inc: { sold: -q } });
     throw e;
   }
+}));
+
+// تسجيل أو إلغاء دفع قسط رقم n
+r.put('/sales/:id/payments/:n', h(async (req, res) => {
+  const { id } = req.params;
+  const n = Number(req.params.n);
+  if (!mongoose.isValidObjectId(id)) throw httpErr(400, 'الاستمارة غير صحيحة');
+  const sale = await Sale.findById(id).lean();
+  if (!sale) throw httpErr(404, 'الاستمارة غير موجودة');
+  if (!Number.isInteger(n) || n < 1 || n > sale.months) throw httpErr(400, 'رقم القسط غير صحيح');
+  if (req.body?.paid) {
+    await Sale.updateOne({ _id: id, 'payments.n': { $ne: n } }, { $push: { payments: { n, paidAt: new Date() } } });
+  } else {
+    await Sale.updateOne({ _id: id }, { $pull: { payments: { n } } });
+  }
+  res.json({ ok: true });
 }));
 
 r.delete('/sales/:id', h(async (req, res) => {
