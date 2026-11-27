@@ -6,6 +6,8 @@ import Products from './Products.jsx';
 import Sales from './Sales.jsx';
 import Suppliers from './Suppliers.jsx';
 import Ledger from './Ledger.jsx';
+import Monthly from './Monthly.jsx';
+import Assistant from './Assistant.jsx';
 
 const icon = (d) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
@@ -39,7 +41,7 @@ function Login({ onDone }) {
   return (
     <div className="login-wrap">
       <motion.form className="login" onSubmit={submit} initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}>
-        <h1>دفتر الأقساط</h1>
+        <h1>AG Group</h1>
         <p>اكتب كلمة السر للدخول</p>
         <input type="password" autoFocus value={pw} onChange={(e) => setPw(e.target.value)} placeholder="كلمة السر" />
         {err && <div className="form-err">{err}</div>}
@@ -49,7 +51,7 @@ function Login({ onDone }) {
   );
 }
 
-function Home({ products, sales, go }) {
+function Home({ products, sales, go, reload, toast }) {
   const s = useMemo(() => {
     const stock = products.reduce((a, p) => a + (p.quantity - p.sold) * p.unitPrice, 0);
     const total = sales.reduce((a, x) => a + x.totalAfterInterest, 0);
@@ -60,6 +62,7 @@ function Home({ products, sales, go }) {
   const recent = sales.slice(0, 5);
   return (
     <div>
+      <Monthly sales={sales} reload={reload} toast={toast} />
       <div className="stats">
         <div className="stat"><span>قيمة المخزون المتبقي</span><b><CountUp value={s.stock} /></b></div>
         <div className="stat"><span>إجمالي المبيعات بعد الفائدة</span><b><CountUp value={s.total} /></b></div>
@@ -139,8 +142,8 @@ export default function App() {
     <div className="shell">
       <header className="top">
         <motion.div className="brand" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }}>
-          <span className="logo">د</span>
-          <div><h1>دفتر الأقساط</h1><small>المخزون والبيع بالتقسيط</small></div>
+          <span className="logo">AG</span>
+          <div><h1>AG Group</h1><small>المخزون والبيع بالتقسيط</small></div>
         </motion.div>
         {protectedApp && (
           <button className="link" onClick={() => { setToken(''); setAuth('login'); }}>خروج</button>
@@ -150,7 +153,7 @@ export default function App() {
       <main>
         <AnimatePresence mode="wait">
           <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
-            {tab === 'home' && <Home products={products} sales={sales} go={setTab} />}
+            {tab === 'home' && <Home products={products} sales={sales} go={setTab} reload={reload} toast={toast$} />}
             {tab === 'products' && <Products products={products} suppliers={suppliers} reload={reload} toast={toast$} />}
             {tab === 'suppliers' && <Suppliers suppliers={suppliers} products={products} reload={reload} toast={toast$} />}
             {tab === 'ledger' && <Ledger products={products} sales={sales} suppliers={suppliers} />}
@@ -166,6 +169,7 @@ export default function App() {
           </button>
         ))}
       </nav>
+      <Assistant products={products} sales={sales} suppliers={suppliers} />
       <Toast toast={toast} />
     </div>
   );
