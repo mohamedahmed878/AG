@@ -25,6 +25,13 @@ async function connect() {
 }
 
 /* ---------- النماذج ---------- */
+const Supplier = mongoose.models.Supplier || mongoose.model('Supplier', new mongoose.Schema({
+  name: { type: String, required: true, trim: true },       // اسم المورد
+  phone: { type: String, default: '', trim: true },
+  address: { type: String, default: '', trim: true },
+  notes: { type: String, default: '', trim: true },
+}, { timestamps: true }));
+
 const Product = mongoose.models.Product || mongoose.model('Product', new mongoose.Schema({
   name: { type: String, required: true, trim: true },       // صنف البضاعة
   quantity: { type: Number, required: true, min: 0 },       // العدد
@@ -32,6 +39,7 @@ const Product = mongoose.models.Product || mongoose.model('Product', new mongoos
   unitPrice: { type: Number, required: true, min: 0 },     // سعر القطعة
   receivedAt: { type: Date, default: Date.now },            // تاريخ استلام البضاعة
   sold: { type: Number, default: 0, min: 0 },               // المباع
+  supplier: { type: mongoose.Schema.Types.ObjectId, ref: 'Supplier', default: null }, // المورد
 }, { timestamps: true }));
 
 const Sale = mongoose.models.Sale || mongoose.model('Sale', new mongoose.Schema({
@@ -48,6 +56,8 @@ const Sale = mongoose.models.Sale || mongoose.model('Sale', new mongoose.Schema(
   soldAt: { type: Date, default: Date.now }, // تاريخ بيع الصنف
   formNumber: String,           // رقم الاستمارة
   customerName: String,         // اسم العميل
+  receivedAt: Date,             // تاريخ استلام البضاعة (وقت البيع)
+  supplierName: String,         // اسم المورد (وقت البيع)
 }, { timestamps: true }));
 
 /* ---------- أدوات ---------- */
@@ -88,6 +98,33 @@ r.use(async (req, res, next) => {
   catch (e) { res.status(500).json({ error: 'تعذر الاتصال بقاعدة البيانات: ' + e.message }); }
 });
 
+/* ---------- الموردين ---------- */
+function readSupplier(b = {}) {
+  const t = (v) => String(v || '').trim();
+  if (!t(b.name)) throw httpErr(400, 'اسم المورد مطلوب');
+  return { name: t(b.name), phone: t(b.phone), address: t(b.address), notes: t(b.notes) };
+}
+
+r.get('/suppliers', h(async (req, res) => {
+  res.json(await Supplier.find().sort({ name: 1 }).lean());
+}));
+
+r.post('/suppliers', h(async (req, res) => {
+  res.status(201).json(await Supplier.create(readSupplier(req.body)));
+}));
+
+r.put('/suppliers/:id', h(async (req, res) => {
+  const s = await Supplier.findByIdAndUpdate(req.params.id, readSupplier(req.body), { new: true });
+  if (!s) throw httpErr(404, 'المورد غير موجود');
+  res.json(s);
+}));
+
+r.delete('/suppliers/:id', h(async (req, res) => {
+  if (await Product.exists({ supplier: req.params.id })) throw httpErr(400, 'لا يمكن حذف مورد مرتبط بأصناف');
+  await Supplier.deleteOne({ _id: req.params.id });
+  res.json({ ok: true });
+}));
+
 /* ---------- الأصناف ---------- */
 r.get('/products', h(async (req, res) => {
   res.json(await Product.find().sort({ createdAt: -1 }).lean());
@@ -98,8 +135,10 @@ function readProduct(b) {
   if (!String(b.name || '').trim()) throw httpErr(400, 'اسم الصنف مطلوب');
   if (!Number.isInteger(quantity) || quantity < 0) throw httpErr(400, 'العدد غير صحيح');
   if (!(unitPrice >= 0)) throw httpErr(400, 'سعر القطعة غير صحيح');
+  if (b.supplier && !mongoose.isValidObjectId(b.supplier)) throw httpErr(400, 'المورد غير صحيح');
   return {
     name: String(b.name).trim(), quantity, unitPrice,
+    supplier: b.supplier || null,
     receiver: String(b.receiver || '').trim(),
     receivedAt: b.receivedAt ? new Date(b.receivedAt) : new Date(),
   };
@@ -147,7 +186,9 @@ r.post('/sales', h(async (req, res) => {
 
   try {
     const c = calc(prod.unitPrice, q, diff, rate, months);
+    const sup = prod.supplier ? await Supplier.findById(prod.supplier).lean() : null;
     const sale = await Sale.create({
+      receivedAt: prod.receivedAt, supplierName: sup?.name || '',
       product: prod._id, productName: prod.name, qty: q, unitPrice: prod.unitPrice,
       priceDiff: diff, ...c, months, ratePct: rate,
       soldAt: b.soldAt ? new Date(b.soldAt) : new Date(),
