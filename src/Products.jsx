@@ -3,9 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { api } from './api.js';
 import { Modal, Field, Empty, fmt, fmtDate, today } from './ui.jsx';
 
-const blank = () => ({ name: '', quantity: '', receiver: '', unitPrice: '', receivedAt: today() });
+const blank = () => ({ name: '', quantity: '', receiver: '', unitPrice: '', receivedAt: today(), supplier: '' });
 
-export default function Products({ products, reload, toast }) {
+export default function Products({ products, suppliers, reload, toast }) {
+  const supName = (id) => suppliers.find((s) => s._id === id)?.name || '';
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -13,14 +14,14 @@ export default function Products({ products, reload, toast }) {
   const [busy, setBusy] = useState(false);
 
   const list = useMemo(
-    () => products.filter((p) => (p.name + ' ' + (p.receiver || '')).includes(q.trim())),
-    [products, q],
+    () => products.filter((p) => (p.name + ' ' + (p.receiver || '') + ' ' + supName(p.supplier)).includes(q.trim())),
+    [products, suppliers, q],
   );
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const show = (p) => {
     setEditId(p ? p._id : null);
-    setForm(p ? { name: p.name, quantity: p.quantity, receiver: p.receiver || '', unitPrice: p.unitPrice, receivedAt: (p.receivedAt || '').slice(0, 10) } : blank());
+    setForm(p ? { name: p.name, quantity: p.quantity, receiver: p.receiver || '', unitPrice: p.unitPrice, receivedAt: (p.receivedAt || '').slice(0, 10), supplier: p.supplier || '' } : blank());
     setOpen(true);
   };
 
@@ -55,7 +56,7 @@ export default function Products({ products, reload, toast }) {
     <section>
       <div className="bar">
         <h2>المخزون</h2>
-        <input className="search" placeholder="ابحث باسم الصنف أو المستلم" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input className="search" placeholder="ابحث بالصنف أو المورد أو المستلم" value={q} onChange={(e) => setQ(e.target.value)} />
         <button className="btn primary" onClick={() => show()}>+ إضافة صنف</button>
       </div>
 
@@ -66,7 +67,7 @@ export default function Products({ products, reload, toast }) {
           <table>
             <thead>
               <tr>
-                <th>الصنف</th><th>العدد</th><th>المستلم</th><th>سعر القطعة</th><th>الإجمالي</th>
+                <th>الصنف</th><th>المورد</th><th>العدد</th><th>المستلم</th><th>سعر القطعة</th><th>الإجمالي</th>
                 <th>المباع</th><th>الباقي</th><th>تاريخ الاستلام</th><th></th>
               </tr>
             </thead>
@@ -77,6 +78,7 @@ export default function Products({ products, reload, toast }) {
                   return (
                     <motion.tr key={p._id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                       <td><b>{p.name}</b></td>
+                      <td>{supName(p.supplier) || '—'}</td>
                       <td className="num">{fmt(p.quantity)}</td>
                       <td>{p.receiver || '—'}</td>
                       <td className="num">{fmt(p.unitPrice)}</td>
@@ -101,6 +103,12 @@ export default function Products({ products, reload, toast }) {
       <Modal open={open} onClose={() => setOpen(false)} title={editId ? 'تعديل الصنف' : 'إضافة صنف'}>
         <form onSubmit={save} className="form">
           <Field label="صنف البضاعة"><input required value={form.name} onChange={set('name')} placeholder="مثال: ثلاجة 16 قدم" /></Field>
+          <Field label="المورد" hint={suppliers.length === 0 ? 'أضف الموردين من تبويب الموردين' : undefined}>
+            <select value={form.supplier} onChange={set('supplier')}>
+              <option value="">بدون مورد</option>
+              {suppliers.map((s) => <option key={s._id} value={s._id}>{s.name}</option>)}
+            </select>
+          </Field>
           <div className="grid2">
             <Field label="العدد"><input required type="number" min="0" step="1" inputMode="numeric" value={form.quantity} onChange={set('quantity')} /></Field>
             <Field label="سعر القطعة"><input required type="number" min="0" step="any" inputMode="decimal" value={form.unitPrice} onChange={set('unitPrice')} /></Field>

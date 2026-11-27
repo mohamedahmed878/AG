@@ -83,7 +83,7 @@ export default function Sales({ products, sales, reload, toast }) {
               <tr>
                 <th>رقم الاستمارة</th><th>العميل</th><th>الصنف</th><th>العدد</th><th>سعر القطعة</th>
                 <th>فرق السعر</th><th>بعد الفرق</th><th>المدة</th><th>الفائدة</th>
-                <th>بعد الفائدة</th><th>القسط الشهري</th><th>تاريخ البيع</th><th></th>
+                <th>بعد الفائدة</th><th>القسط الشهري</th><th>المورد</th><th>تاريخ الاستلام</th><th>تاريخ البيع</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -101,6 +101,8 @@ export default function Sales({ products, sales, reload, toast }) {
                     <td className="num">{fmt(s.ratePct)}٪</td>
                     <td className="num">{fmt(s.totalAfterInterest)}</td>
                     <td className="num gold-t"><b>{fmt(s.monthly)}</b></td>
+                    <td>{s.supplierName || '—'}</td>
+                    <td>{fmtDate(s.receivedAt || products.find((p) => p._id === s.product)?.receivedAt)}</td>
                     <td>{fmtDate(s.soldAt)}</td>
                     <td className="actions"><button className="link danger" onClick={() => del(s)}>حذف</button></td>
                   </motion.tr>
@@ -118,7 +120,7 @@ export default function Sales({ products, sales, reload, toast }) {
             <Field label="رقم الاستمارة"><input value={form.formNumber} onChange={set('formNumber')} /></Field>
             <Field label="اسم العميل"><input required value={form.customerName} onChange={set('customerName')} /></Field>
           </div>
-          <Field label="صنف البضاعة" hint={prod ? `المتاح: ${fmt(left)} — سعر القطعة: ${fmt(prod.unitPrice)}` : undefined}>
+          <Field label="صنف البضاعة" hint={prod ? `المتاح: ${fmt(left)} — سعر القطعة: ${fmt(prod.unitPrice)} — استلام: ${fmtDate(prod.receivedAt)}` : undefined}>
             <select required value={form.productId} onChange={set('productId')}>
               <option value="">اختر الصنف</option>
               {available.map((p) => <option key={p._id} value={p._id}>{p.name} (متاح {fmt(p.quantity - p.sold)})</option>)}

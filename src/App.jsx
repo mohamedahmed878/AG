@@ -4,11 +4,19 @@ import { api, getToken, setToken } from './api.js';
 import { CountUp, Toast, fmt, fmtDate } from './ui.jsx';
 import Products from './Products.jsx';
 import Sales from './Sales.jsx';
+import Suppliers from './Suppliers.jsx';
+import Ledger from './Ledger.jsx';
+
+const icon = (d) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
+);
 
 const TABS = [
-  { id: 'home', label: 'الرئيسية' },
-  { id: 'products', label: 'المخزون' },
-  { id: 'sales', label: 'المبيعات والأقساط' },
+  { id: 'home', label: 'الرئيسية', d: 'M3 11l9-8 9 8M5 10v10h14V10M10 20v-6h4v6' },
+  { id: 'products', label: 'المخزون', d: 'M12 3l9 5v8l-9 5-9-5V8zM3 8l9 5 9-5M12 13v8' },
+  { id: 'suppliers', label: 'الموردين', d: 'M3 6h11v11H3zM14 10h4l3 3v4h-7M7 20a2 2 0 100-4 2 2 0 000 4zM17 20a2 2 0 100-4 2 2 0 000 4z' },
+  { id: 'sales', label: 'المبيعات', d: 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6' },
+  { id: 'ledger', label: 'السجل', d: 'M5 4h14v16H5zM9 4v16M12 9h4M12 13h4' },
 ];
 
 function Login({ onDone }) {
@@ -86,6 +94,7 @@ export default function App() {
   const [tab, setTab] = useState('home');
   const [products, setProducts] = useState([]);
   const [sales, setSales] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
   const [toast, setToastState] = useState(null);
   const [protectedApp, setProtected] = useState(false);
 
@@ -96,9 +105,10 @@ export default function App() {
   }, []);
 
   const reload = useCallback(async () => {
-    const [p, s] = await Promise.all([api('/products'), api('/sales')]);
+    const [p, s, v] = await Promise.all([api('/products'), api('/sales'), api('/suppliers')]);
     setProducts(p);
     setSales(s);
+    setSuppliers(v);
   }, []);
 
   const boot = useCallback(async () => {
@@ -132,14 +142,6 @@ export default function App() {
           <span className="logo">د</span>
           <div><h1>دفتر الأقساط</h1><small>المخزون والبيع بالتقسيط</small></div>
         </motion.div>
-        <nav className="tabs" aria-label="التنقل">
-          {TABS.map((t) => (
-            <button key={t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
-              {tab === t.id && <motion.span layoutId="pill" className="pill" transition={{ type: 'spring', stiffness: 400, damping: 32 }} />}
-              <span className="lbl">{t.label}</span>
-            </button>
-          ))}
-        </nav>
         {protectedApp && (
           <button className="link" onClick={() => { setToken(''); setAuth('login'); }}>خروج</button>
         )}
@@ -149,11 +151,21 @@ export default function App() {
         <AnimatePresence mode="wait">
           <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
             {tab === 'home' && <Home products={products} sales={sales} go={setTab} />}
-            {tab === 'products' && <Products products={products} reload={reload} toast={toast$} />}
+            {tab === 'products' && <Products products={products} suppliers={suppliers} reload={reload} toast={toast$} />}
+            {tab === 'suppliers' && <Suppliers suppliers={suppliers} products={products} reload={reload} toast={toast$} />}
+            {tab === 'ledger' && <Ledger products={products} sales={sales} suppliers={suppliers} />}
             {tab === 'sales' && <Sales products={products} sales={sales} reload={reload} toast={toast$} />}
           </motion.div>
         </AnimatePresence>
       </main>
+      <nav className="tabs" aria-label="التنقل">
+        {TABS.map((t) => (
+          <button key={t.id} className={tab === t.id ? 'on' : ''} aria-current={tab === t.id ? 'page' : undefined} onClick={() => setTab(t.id)}>
+            {tab === t.id && <motion.span layoutId="pill" className="pill" transition={{ type: 'spring', stiffness: 400, damping: 32 }} />}
+            <span className="lbl">{icon(t.d)}{t.label}</span>
+          </button>
+        ))}
+      </nav>
       <Toast toast={toast} />
     </div>
   );

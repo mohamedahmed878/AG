@@ -5,7 +5,11 @@ const nf = new Intl.NumberFormat('ar-EG', { maximumFractionDigits: 2 });
 export const fmt = (n) => nf.format(Number(n) || 0);
 export const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
-export const today = () => new Date().toISOString().slice(0, 10);
+// التاريخ بتوقيت الجهاز (مش UTC)
+export const today = () => {
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+};
 
 export function CountUp({ value }) {
   const ref = useRef(null);
